@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import Dict, List
 
 
 @dataclass
@@ -14,6 +14,10 @@ class ChapterNode:
     chapter_num: int
     title: str
     summary: str
+    core_plot: str
+    key_interactions: str
+    scene_details: str
+    extra_sections: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -48,6 +52,10 @@ class NovelOutline:
                             "chapter_num": chapter.chapter_num,
                             "title": chapter.title,
                             "summary": chapter.summary,
+                            "core_plot": chapter.core_plot,
+                            "key_interactions": chapter.key_interactions,
+                            "scene_details": chapter.scene_details,
+                            "extra_sections": chapter.extra_sections,
                         }
                         for chapter in volume.chapters
                     ],

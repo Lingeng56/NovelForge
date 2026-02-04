@@ -27,6 +27,10 @@ def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def _strict_mode() -> bool:
+    return os.getenv("NOVELFORGE_STRICT", "").strip().lower() in {"1", "true", "yes"}
+
+
 def project_paths(project_dir: Path) -> Dict[str, Path]:
     return {
         "root": project_dir,
@@ -258,12 +262,18 @@ with outline_tab:
     st.markdown("**A. 从灵感生成**")
     idea = st.text_area("灵感", "赛博朋克世界的修仙者")
     if st.button("生成大纲"):
-        os.environ["NOVELFORGE_MODEL_ARCHITECT"] = model_architect
-        settings = get_settings()
-        client = get_client(settings)
-        outline = main_architect(client, settings.model_architect, idea)
-        project_paths(project_dir)["outline"].write_text(outline_to_json(outline), encoding="utf-8")
-        st.success("outline.json 已保存。")
+        try:
+            os.environ["NOVELFORGE_MODEL_ARCHITECT"] = model_architect
+            settings = get_settings()
+            client = get_client(settings)
+            outline = main_architect(client, settings.model_architect, idea)
+            project_paths(project_dir)["outline"].write_text(outline_to_json(outline), encoding="utf-8")
+            st.success("outline.json 已保存。")
+        except Exception as exc:
+            st.error(str(exc))
+            if _strict_mode():
+                raise
+            print(f"[streamlit_app] error: {exc}")
 
     st.markdown("**B. 从文件转换**")
     uploaded = st.file_uploader("上传大纲文件（.docx/.txt/.md）")
@@ -272,20 +282,26 @@ with outline_tab:
             st.stop()
         dest = project_paths(project_dir)["input"] / uploaded.name
         dest.write_bytes(uploaded.read())
-        os.environ["NOVELFORGE_MODEL_CONVERT"] = model_convert
-        settings = get_settings()
-        client = get_client(settings)
-        convert_outline(
-            str(dest),
-            str(project_paths(project_dir)["outline"]),
-            client=client,
-            model=model_convert,
-            title=None,
-            reasoning_effort="high",
-            stream_output=False,
-            max_tokens=65536,
-        )
-        st.success("outline.json 已保存。")
+        try:
+            os.environ["NOVELFORGE_MODEL_CONVERT"] = model_convert
+            settings = get_settings()
+            client = get_client(settings)
+            convert_outline(
+                str(dest),
+                str(project_paths(project_dir)["outline"]),
+                client=client,
+                model=model_convert,
+                title=None,
+                reasoning_effort="high",
+                stream_output=False,
+                max_tokens=65536,
+            )
+            st.success("outline.json 已保存。")
+        except Exception as exc:
+            st.error(str(exc))
+            if _strict_mode():
+                raise
+            print(f"[streamlit_app] error: {exc}")
 
     st.markdown("**C. 从文本转换**")
     text_input = st.text_area("粘贴大纲文本")
@@ -294,20 +310,26 @@ with outline_tab:
             st.stop()
         dest = project_paths(project_dir)["input"] / "outline_text.txt"
         dest.write_text(text_input, encoding="utf-8")
-        os.environ["NOVELFORGE_MODEL_CONVERT"] = model_convert
-        settings = get_settings()
-        client = get_client(settings)
-        convert_outline(
-            str(dest),
-            str(project_paths(project_dir)["outline"]),
-            client=client,
-            model=model_convert,
-            title=None,
-            reasoning_effort="high",
-            stream_output=False,
-            max_tokens=65536,
-        )
-        st.success("outline.json 已保存。")
+        try:
+            os.environ["NOVELFORGE_MODEL_CONVERT"] = model_convert
+            settings = get_settings()
+            client = get_client(settings)
+            convert_outline(
+                str(dest),
+                str(project_paths(project_dir)["outline"]),
+                client=client,
+                model=model_convert,
+                title=None,
+                reasoning_effort="high",
+                stream_output=False,
+                max_tokens=65536,
+            )
+            st.success("outline.json 已保存。")
+        except Exception as exc:
+            st.error(str(exc))
+            if _strict_mode():
+                raise
+            print(f"[streamlit_app] error: {exc}")
 
     st.markdown("**D. 上传 outline.json**")
     outline_upload = st.file_uploader("上传 outline.json", type=["json"], key="outline_json_upload")
@@ -328,6 +350,9 @@ with outline_tab:
             st.success("outline.json 已保存。")
         except Exception as e:
             st.error(str(e))
+            if _strict_mode():
+                raise
+            print(f"[streamlit_app] error: {e}")
 
     st.markdown("**大纲预览**")
     outline_path = project_paths(project_dir)["outline"]
@@ -411,27 +436,33 @@ with outline_gen_tab:
         if not outline_path.exists():
             st.error("请先生成 outline.json。")
         else:
-            settings = get_settings()
-            client = get_client(settings)
-            stream_box = st.expander("重写输出（流式）", expanded=False)
-            stream_placeholder = stream_box.empty()
-            stream_chunks: list[str] = []
+            try:
+                settings = get_settings()
+                client = get_client(settings)
+                stream_box = st.expander("重写输出（流式）", expanded=False)
+                stream_placeholder = stream_box.empty()
+                stream_chunks: list[str] = []
 
-            def stream_handler(text: str) -> None:
-                stream_chunks.append(text)
-                stream_placeholder.text("".join(stream_chunks))
+                def stream_handler(text: str) -> None:
+                    stream_chunks.append(text)
+                    stream_placeholder.text("".join(stream_chunks))
 
-            rewrite_outline(
-                str(outline_path),
-                str(outline_path),
-                client=client,
-                model="doubao-seed-1-8-251228",
-                reasoning_effort="high",
-                stream_output=True,
-                stream_handler=stream_handler,
-                max_tokens=32768,
-            )
-            st.success("大纲文件已重写规整。")
+                rewrite_outline(
+                    str(outline_path),
+                    str(outline_path),
+                    client=client,
+                    model="doubao-seed-1-8-251228",
+                    reasoning_effort="high",
+                    stream_output=True,
+                    stream_handler=stream_handler,
+                    max_tokens=32768,
+                )
+                st.success("大纲文件已重写规整。")
+            except Exception as exc:
+                st.error(str(exc))
+                if _strict_mode():
+                    raise
+                print(f"[streamlit_app] error: {exc}")
 
 
 with generate_tab:

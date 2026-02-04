@@ -12,7 +12,17 @@ def _normalize_chapters(raw_chapters: List[dict], chapter_offset: int) -> List[C
         title = str(raw.get("title", "Untitled"))
         summary = str(raw.get("summary", ""))
         chapter_num = chapter_offset + idx
-        chapters.append(ChapterNode(chapter_num=chapter_num, title=title, summary=summary))
+        chapters.append(
+            ChapterNode(
+                chapter_num=chapter_num,
+                title=title,
+                summary=summary,
+                core_plot=str(raw.get("core_plot", "")),
+                key_interactions=str(raw.get("key_interactions", "")),
+                scene_details=str(raw.get("scene_details", "")),
+                extra_sections=dict(raw.get("extra_sections", {}) or {}),
+            )
+        )
 
     while len(chapters) < 25:
         idx = len(chapters) + 1
@@ -22,6 +32,10 @@ def _normalize_chapters(raw_chapters: List[dict], chapter_offset: int) -> List[C
                 chapter_num=chapter_num,
                 title=f"Chapter {chapter_num}",
                 summary="Placeholder summary to reach 25 chapters.",
+                core_plot="",
+                key_interactions="",
+                scene_details="",
+                extra_sections={},
             )
         )
     return chapters

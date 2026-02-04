@@ -12,6 +12,10 @@ from .logic.outline_convert import convert_outline, rewrite_outline
 from .logic.chapter_split import split_file_to_dir
 
 
+def _strict_mode() -> bool:
+    return os.getenv("NOVELFORGE_STRICT", "").strip().lower() in {"1", "true", "yes"}
+
+
 def run_architect(args: argparse.Namespace) -> None:
     settings = get_settings()
     client = get_client(settings)
@@ -191,7 +195,12 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except Exception as exc:
+        if _strict_mode():
+            raise
+        print(f"[novelforge] error: {exc}")
 
 
 if __name__ == "__main__":

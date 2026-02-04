@@ -9,6 +9,10 @@ from .cache import load_cached_text, store_cached_text
 from .config import Settings
 
 
+def _strict_mode() -> bool:
+    return os.getenv("NOVELFORGE_STRICT", "").strip().lower() in {"1", "true", "yes"}
+
+
 def get_client(settings: Settings) -> OpenAI:
     return OpenAI(
         base_url=settings.base_url,
@@ -69,44 +73,63 @@ def call_text(client: OpenAI, model: str, prompt: str, max_output_tokens: int | 
 
     debug = os.getenv("NOVELFORGE_DEBUG", "").strip().lower() in {"1", "true", "yes"}
     last_error = None
-    for attempt in range(3):
-        kwargs = {
-            "model": model,
-            "input": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": prompt,
-                        }
-                    ],
-                }
-            ],
-        }
-        if max_output_tokens is not None:
-            kwargs["max_output_tokens"] = max_output_tokens
-        response = client.responses.create(**kwargs)
-        text = _extract_output_text(response)
-        if text:
-            store_cached_text(model, prompt, text)
-            return text
-        if getattr(response, "error", None):
-            last_error = RuntimeError(f"Model error: {response.error}")
+    try:
+        for attempt in range(3):
+            kwargs = {
+                "model": model,
+                "input": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": prompt,
+                            }
+                        ],
+                    }
+                ],
+            }
+            if max_output_tokens is not None:
+                kwargs["max_output_tokens"] = max_output_tokens
+            response = client.responses.create(**kwargs)
+            text = _extract_output_text(response)
+            if text:
+                store_cached_text(model, prompt, text)
+                return text
+            if getattr(response, "error", None):
+                last_error = RuntimeError(f"Model error: {response.error}")
+                if debug:
+                    print("---- NOVELFORGE MODEL ERROR ----")
+                    print(response.error)
+                    print("---- END MODEL ERROR ----")
+                break
             if debug:
-                print("---- NOVELFORGE MODEL ERROR ----")
-                print(response.error)
-                print("---- END MODEL ERROR ----")
-            break
+                print("---- NOVELFORGE EMPTY RESPONSE ----")
+                print(response)
+                print("---- END EMPTY RESPONSE ----")
+            time.sleep(1)
+    except Exception as exc:
         if debug:
-            print("---- NOVELFORGE EMPTY RESPONSE ----")
-            print(response)
-            print("---- END EMPTY RESPONSE ----")
-        time.sleep(1)
+            print("---- NOVELFORGE CALL_TEXT EXCEPTION ----")
+            print(exc)
+            print("---- END EXCEPTION ----")
+        else:
+            print(f"[novelforge] call_text exception: {exc}")
+        if _strict_mode():
+            raise
+        return ""
 
     if last_error:
-        raise last_error
-    raise RuntimeError("Empty model response output.")
+        if debug:
+            print("---- NOVELFORGE CALL_TEXT ERROR ----")
+            print(last_error)
+            print("---- END ERROR ----")
+        else:
+            print(f"[novelforge] call_text error: {last_error}")
+        if _strict_mode():
+            raise last_error
+        return ""
+    return ""
 
 
 def call_json(client: OpenAI, model: str, prompt: str, max_output_tokens: int | None = None) -> Dict[str, Any]:
@@ -115,4 +138,12 @@ def call_json(client: OpenAI, model: str, prompt: str, max_output_tokens: int | 
         print("---- NOVELFORGE RAW MODEL OUTPUT ----")
         print(text)
         print("---- END RAW MODEL OUTPUT ----")
-    return _extract_json(text)
+    if not text:
+        return {}
+    try:
+        return _extract_json(text)
+    except Exception as exc:
+        if _strict_mode():
+            raise
+        print(f"[novelforge] call_json parse error: {exc}")
+        return {}
