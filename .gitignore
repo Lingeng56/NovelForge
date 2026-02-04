@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Build artifacts
+build/
+dist/
+*.spec
+
+# App caches
+.novelforge-cache/
+.novelforge-memory/
+
+# Data / large files / generated
+projects/
+outline*.json
+*.txt
+*.docx
+赛博仙途_霓虹道骨/
+
+# Allow key text files
+!requirements*.txt
+!milestones.txt
+
+# Misc
+.DS_Store

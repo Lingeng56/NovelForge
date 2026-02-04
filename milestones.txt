@@ -1,0 +1,210 @@
+这是一个为您拆解的 **NovelForge 分阶段里程碑设计文档 (Milestone Design Docs)**。
+
+您可以将每一个里程碑单独发送给您的 AI 编程助手（Cursor/Windsurf），让它专注完成当前模块，避免上下文过载导致的代码混乱。
+
+---
+
+# Milestone 1: The Architect (灵感架构师)
+
+**目标**：实现“从一句话灵感生成 100 章结构化大纲”的核心链路。
+
+### 1. 模块定义
+
+* **输入**：`UserIdea` (String, e.g., "赛博朋克世界的修仙者")
+* **输出**：`NovelStructure` (JSON, 包含世界观、角色、分卷、100章列表)
+* **核心逻辑**：链式推理 (Chain of Thought)。`Idea -> World -> Volume -> Chapter`。
+
+### 2. 数据结构 (Data Schema)
+
+```python
+# file: schemas/structure.py
+class WorldSetting(BaseModel):
+    power_system: str
+    world_rules: str
+    main_conflict: str
+
+class ChapterNode(BaseModel):
+    chapter_num: int
+    title: str
+    summary: str # 50-100字梗概
+
+class VolumeNode(BaseModel):
+    volume_num: int
+    title: str
+    core_objective: str # 本卷目标
+    chapters: List[ChapterNode]
+
+class NovelOutline(BaseModel):
+    title: str
+    setting: WorldSetting
+    volumes: List[VolumeNode]
+
+```
+
+### 3. 开发步骤 (Step-by-Step Instructions)
+
+1. **Step 1: World Builder**
+* 创建 `logic/architect.py`。
+* 实现 `generate_setting(idea) -> WorldSetting`。
+* *Prompt 重点*：要求模型基于灵感扩展 3 个维度的设定（力量、地理、势力）。
+
+
+2. **Step 2: Volume Planner**
+* 实现 `plan_volumes(idea, setting) -> List[VolumeNode]` (仅包含卷名和卷简介，不含章节)。
+* *逻辑*：固定生成 4 卷（起、承、转、合）。
+
+
+3. **Step 3: Chapter Expander**
+* 实现 `expand_chapters(volume_summary) -> List[ChapterNode]`。
+* *逻辑*：并发或循环调用。每卷生成 25 章。要求第 25 章必须是高潮。
+
+
+4. **Step 4: Assembler**
+* 编写 `main_architect(idea)` 将上述步骤串联，输出完整的 `NovelOutline` JSON。
+
+
+
+### 4. 验收标准 (Verification)
+
+* 运行脚本，输入简单 Idea，能在 60 秒内生成包含 100 个章节对象的 JSON 文件。
+* 检查第 25、50、75、100 章的 `summary` 是否具备明显的高潮剧情特征。
+
+---
+
+# Milestone 2: The Editor (智能编辑)
+
+**目标**：实现“对现有大纲的逻辑诊断与自动化修复”。
+
+### 1. 模块定义
+
+* **输入**：`NovelOutline` (JSON) + `EditInstruction` (String, e.g., "增加反派智商")
+* **输出**：`NovelOutline` (Refined Version)
+* **核心逻辑**：Critic-Refiner Loop (批评-修正循环)。
+
+### 2. 开发步骤 (Step-by-Step Instructions)
+
+1. **Step 1: Logic Analyzer (The Critic)**
+* 创建 `logic/editor.py`。
+* 实现 `analyze_logic(outline) -> List[Issue]`。
+* *Prompt 重点*：让 LLM 扮演“毒舌编辑”，寻找前后矛盾（如：道具遗忘、死人复活）和节奏拖沓点。
+
+
+2. **Step 2: Pacing Adjuster**
+* 实现 `apply_pacing_curve(outline)`。
+* *算法*：读取所有章节摘要，计算“紧张度”分数。如果发现连续 10 章都是低紧张度，标记为“注水区域”。
+
+
+3. **Step 3: Refiner (The Fixer)**
+* 实现 `rewrite_volume(volume_data, issues)`。
+* *逻辑*：仅重写被标记为有问题的章节摘要，保持其他章节不变，以降低 Token 消耗。
+
+
+
+### 3. 验收标准 (Verification)
+
+* 构造一个含有逻辑错误的大纲（例如：第 5 章主角断臂，第 10 章双手持剑）。
+* 运行 Editor，检查输出的大纲是否修复了该漏洞（例如：改为单手持剑或义肢）。
+
+---
+
+# Milestone 3: The Mimic (风格变色龙)
+
+**目标**：建立风格向量库，实现“基于样文的风格化重写”。
+
+### 1. 模块定义
+
+* **输入**：`ReferenceText` (Text File) + `RawContent` (String)
+* **输出**：`StyledContent` (String)
+* **核心逻辑**：RAG (检索增强) + Style Transfer Prompting。
+
+### 2. 技术栈 (Tech Stack)
+
+* **Vector DB**: ChromaDB (本地轻量级) 或 Faiss。
+* **Embeddings**: VolcEngine Embeddings 或 OpenAI text-embedding-3-small。
+
+### 3. 开发步骤 (Step-by-Step Instructions)
+
+1. **Step 1: Style Extractor**
+* 创建 `logic/mimic.py`。
+* 实现 `analyze_style_profile(text) -> StyleProfile` (JSON: 常用词、句长分布、语气)。
+
+
+2. **Step 2: Vector Store Setup**
+* 实现 `ingest_samples(text_file)`。
+* 将样文切分为 300 字的 chunks，存入 ChromaDB。
+
+
+3. **Step 3: RAG Rewriter**
+* 实现 `rewrite(raw_text, style_profile)`。
+* *流程*：
+1. 用 `raw_text` 去 ChromaDB 检索 3 个最相似的样文片段。
+2. 构造 Prompt：`"参考以下样文的文风 [Example 1, 2, 3]，重写这段话：[Raw Text]"`。
+
+
+
+
+
+### 4. 验收标准 (Verification)
+
+* 输入一段平淡的“他拔出剑冲了上去”。
+* 加载“古龙风”样文，输出应类似：“剑光一闪。没有人看清他是如何拔剑的，只有喉咙上的血线...”
+
+---
+
+# Milestone 4: The Ghostwriter (深度代笔)
+
+**目标**：实现“基于大纲的流式长文生成，维持 100 章连贯性”。**这是最复杂的模块。**
+
+### 1. 模块定义
+
+* **输入**：`ChapterNode` (from Milestone 1) + `NovelContext` (Redis)
+* **输出**：`FullChapterText` (3000-5000 words)
+* **核心逻辑**：Beat Sheet Expansion (分镜扩写) + Sliding Window Memory (滑动窗口记忆)。
+
+### 2. 数据结构 (Data Schema)
+
+```python
+# file: schemas/execution.py
+class SceneBeat(BaseModel):
+    location: str
+    characters: List[str]
+    action_description: str
+    mood: str
+    estimated_word_count: int = 800
+
+```
+
+### 3. 开发步骤 (Step-by-Step Instructions)
+
+1. **Step 1: Context Manager (Redis)**
+* 创建 `core/memory.py`。
+* 实现 `get_context(novel_id)`：聚合“世界观” + “最近 3 章摘要” + “上一段落结尾”。
+* 实现 `update_summary(novel_id, chapter_text)`：生成本章摘要并推入 Redis List。
+
+
+2. **Step 2: Beat Planner**
+* 创建 `logic/ghostwriter.py`。
+* 实现 `plan_scenes(chapter_summary) -> List[SceneBeat]`。
+* *Prompt*：强制要求将 100 字的大纲拆解为 6 个具体场景。
+
+
+3. **Step 3: Scene Writer Loop**
+* 实现 `write_scene(beat, context)`。
+* *逻辑*：生成一个场景 -> 保存 -> 更新 Context -> 生成下一个场景。
+
+
+4. **Step 4: Pipeline Orchestrator**
+* 实现 `generate_chapter(chapter_node)`。串联 Planner 和 Writer Loop。
+
+
+
+### 4. 验收标准 (Verification)
+
+* **字数检查**：生成的一章正文需 > 3000 字。
+* **记忆检查**：连续生成 5 章。检查第 5 章的开头是否自然承接第 4 章的结尾（而不是重新自我介绍）。
+* **一致性**：主角的名字在 5 章内保持一致，没有发生突变。
+
+---
+
+**建议执行顺序**：1 -> 4 -> 2 -> 3。
+先搞定 **架构 (1)** 和 **正文生成 (4)**，你就拥有了一个最小可行产品 (MVP)。**编辑 (2)** 和 **仿写 (3)** 是提升质量的高级功能。
