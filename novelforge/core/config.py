@@ -1,4 +1,5 @@
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,16 +36,24 @@ def get_settings() -> Settings:
     if not resolved_model_list.exists():
         project_root = Path(__file__).resolve().parents[2]
         resolved_model_list = project_root / model_list_path
-    model_ids = load_model_ids(resolved_model_list)
+    if not resolved_model_list.exists() and hasattr(sys, "_MEIPASS"):
+        resolved_model_list = Path(sys._MEIPASS) / model_list_path
+
+    model_ids: set[str] | None
+    try:
+        model_ids = load_model_ids(resolved_model_list)
+    except FileNotFoundError:
+        model_ids = None
     model_architect = os.getenv("NOVELFORGE_MODEL_ARCHITECT", "doubao-seed-1-6-flash-250828").strip()
     model_editor = os.getenv("NOVELFORGE_MODEL_EDITOR", "doubao-seed-1-6-flash-250828").strip()
     model_mimic = os.getenv("NOVELFORGE_MODEL_MIMIC", "doubao-seed-1-6-flash-250828").strip()
     model_ghostwriter = os.getenv("NOVELFORGE_MODEL_GHOSTWRITER", "doubao-seed-1-6-flash-250828").strip()
 
-    _validate_model(model_architect, model_ids)
-    _validate_model(model_editor, model_ids)
-    _validate_model(model_mimic, model_ids)
-    _validate_model(model_ghostwriter, model_ids)
+    if model_ids:
+        _validate_model(model_architect, model_ids)
+        _validate_model(model_editor, model_ids)
+        _validate_model(model_mimic, model_ids)
+        _validate_model(model_ghostwriter, model_ids)
 
     return Settings(
         api_key=api_key,
