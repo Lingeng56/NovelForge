@@ -31,3 +31,9 @@ outline*.json
 
 # Misc
 .DS_Store
+
+# Generated intermediate outputs
+chapters_split.json
+chapters_outlines.json
+港综_悍匪系统章纲1-100章/
+玄天微返/
