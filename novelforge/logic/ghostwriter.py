@@ -181,6 +181,28 @@ DEFAULT_PROMPT_TAIL_THREE_PART = (
 )
 
 
+def save_chapter_files(base_dir: Path, chapter_node: ChapterNode, chapter_text: str) -> dict[str, Path]:
+    base_dir.mkdir(parents=True, exist_ok=True)
+    filename_base = f"chapter-{chapter_node.chapter_num:03d}"
+    md_path = base_dir / f"{filename_base}.md"
+    docx_path = base_dir / f"{filename_base}.docx"
+    content = f"# {chapter_node.title}\n\n{chapter_text}\n"
+    md_path.write_text(content, encoding="utf-8")
+    try:
+        from docx import Document
+
+        doc = Document()
+        doc.add_heading(chapter_node.title, level=1)
+        for para in chapter_text.split("\n\n"):
+            text = para.strip()
+            if text:
+                doc.add_paragraph(text)
+        doc.save(docx_path)
+    except Exception as exc:
+        print(f"[ghostwriter] save_docx error: {exc}")
+    return {"md": md_path, "docx": docx_path}
+
+
 def stream_chapter(
     client: OpenAI,
     model: str,

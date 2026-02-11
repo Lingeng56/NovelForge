@@ -26,7 +26,7 @@ from novelforge.core.config import get_settings
 from novelforge.core.auth import monthly_password_hash
 from novelforge.core.llm import get_client
 from novelforge.core.memory import MemoryStore
-from novelforge.logic.ghostwriter import DEFAULT_LEADIN, generate_chapter, load_outline
+from novelforge.logic.ghostwriter import DEFAULT_LEADIN, generate_chapter, load_outline, save_chapter_files
 
 
 class CancelledError(Exception):
@@ -365,11 +365,8 @@ class NovelWriterApp(QMainWindow):
                     next_window=next_window,
                 )
 
-                filename = f"chapter-{chapter_node.chapter_num:03d}.md"
-                path = base_dir / filename
-                content = f"# {chapter_node.title}\n\n{result['chapter_text']}\n"
-                path.write_text(content, encoding="utf-8")
-                log(f"已生成：{path}")
+                files = save_chapter_files(base_dir, chapter_node, result["chapter_text"])
+                log(f"已生成：{files['md']}")
                 progress(idx, total)
 
         self._start_worker(task)

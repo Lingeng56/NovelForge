@@ -7,7 +7,7 @@ from .core.memory import MemoryStore
 from .core.models import load_model_ids
 from .core.llm import get_client
 from .logic.architect import main_architect, outline_to_json
-from .logic.ghostwriter import generate_chapter, load_outline
+from .logic.ghostwriter import generate_chapter, load_outline, save_chapter_files
 from .logic.outline_convert import convert_outline, rewrite_outline
 from .logic.chapter_split import split_file_to_dir
 
@@ -98,10 +98,7 @@ def run_ghostwriter(args: argparse.Namespace) -> None:
                 safe_title = "Untitled"
             base_dir = Path(args.output_dir) / safe_title
             base_dir.mkdir(parents=True, exist_ok=True)
-            filename = f"chapter-{chapter_node.chapter_num:03d}.md"
-            path = base_dir / filename
-            content = f"# {chapter_node.title}\n\n{result['chapter_text']}\n"
-            path.write_text(content, encoding="utf-8")
+            save_chapter_files(base_dir, chapter_node, result["chapter_text"])
 
 
 def run_convert(args: argparse.Namespace) -> None:
@@ -116,7 +113,7 @@ def run_convert(args: argparse.Namespace) -> None:
         reasoning_effort="high",
         stream_output=args.stream,
         stream_handler=(lambda text: print(text, end="", flush=True)) if args.stream else None,
-        max_tokens=65536,
+        max_tokens=32768,
     )
 
 

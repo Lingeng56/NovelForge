@@ -405,7 +405,7 @@ class OutlineGeneratorApp(QMainWindow):
                 model=os.getenv("NOVELFORGE_MODEL_CONVERT", "doubao-seed-1-8-251228"),
                 reasoning_effort="high",
                 stream_output=False,
-                max_tokens=65536,
+                max_tokens=32768,
             )
             log(f"输出完成：{output_path}")
 
@@ -523,7 +523,7 @@ class OutlineGeneratorApp(QMainWindow):
                 model=os.getenv("NOVELFORGE_MODEL_CONVERT", "doubao-seed-1-8-251228"),
                 reasoning_effort="high",
                 stream_output=False,
-                max_tokens=65536,
+                max_tokens=32768,
             )
             log(f"输出完成：{out_path}")
 

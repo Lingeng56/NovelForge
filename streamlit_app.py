@@ -13,7 +13,7 @@ from novelforge.core.config import get_settings
 from novelforge.core.llm import get_client
 from novelforge.core.memory import MemoryStore
 from novelforge.logic.architect import main_architect, outline_to_json
-from novelforge.logic.ghostwriter import generate_chapter, load_outline, DEFAULT_LEADIN
+from novelforge.logic.ghostwriter import generate_chapter, load_outline, DEFAULT_LEADIN, save_chapter_files
 from novelforge.logic.chapter_split import split_file_to_dir
 from novelforge.logic.outline_pipeline import (
     merge_outline,
@@ -207,10 +207,8 @@ def generate_in_background(project_dir: Path, chapter_numbers: list[int]) -> Non
             safe_title = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in novel_title).strip() or "Untitled"
             base_dir = project_paths(project_dir)["output"] / safe_title
             base_dir.mkdir(parents=True, exist_ok=True)
-            filename = f"chapter-{chapter_node.chapter_num:03d}.md"
-            path = base_dir / filename
-            content = f"# {chapter_node.title}\n\n{result['chapter_text']}\n"
-            path.write_text(content, encoding="utf-8")
+            files = save_chapter_files(base_dir, chapter_node, result["chapter_text"])
+            filename = files["md"].name
 
             write_status(project_dir, {"state": "running", "current": idx, "total": total, "message": f"generated {filename}"})
 
@@ -294,7 +292,7 @@ with outline_tab:
                 title=None,
                 reasoning_effort="high",
                 stream_output=False,
-                max_tokens=65536,
+                max_tokens=32768,
             )
             st.success("outline.json 已保存。")
         except Exception as exc:
@@ -322,7 +320,7 @@ with outline_tab:
                 title=None,
                 reasoning_effort="high",
                 stream_output=False,
-                max_tokens=65536,
+                max_tokens=32768,
             )
             st.success("outline.json 已保存。")
         except Exception as exc:
